@@ -21,6 +21,13 @@ body {
 <div id="app"></div>
 <script>
 
+function sleep(ms) {
+  return new Promise(function(resolve, reject) {
+    setTimeout(resolve, ms);
+  });
+}
+
+
 // TODO: Make this more logical and flexible.
 function getItemImageUrl(item) {
   const tile = item.image.tile;
@@ -48,6 +55,7 @@ function htmlToElement(html) {
   return template.content.firstChild;
 }
 
+
 class HomePage {
   constructor({ homePageUrl, container }) {
     this.container = container;
@@ -59,19 +67,47 @@ class HomePage {
 
 
   async initializeData() {
-    // Note: consider finding a way to delay this to test out regular network conditions
-    const homePageData = await fetch(this.homePageUrl, { mode: 'no-cors' })
-      .then(response => response.json())
-      this.state.homePageData = homePageData;
+    await this.populateHomePageData(this.homePageUrl);
+    await this.populateRefSets();
     this.render();
   }
 
+  async populateHomePageData(homePageUrl) {
+    // Note: consider finding a way to delay this to test out regular network conditions
+    const homePageData = await fetch(homePageUrl, { mode: 'no-cors' })
+      .then(response => response.json())
+    this.state.homePageData = homePageData;
+  }
+
+  /**
+    Caching from the start here.
+  */
+  async fetchRefSet(id) {
+    if (this.state.refSets[id]) {
+      return this.state.refSets[id];
+    } else {
+      const refSetData = await fetch(`https://cd-static.bamgrid.com/dp-117731241344/sets/${id}.json`)
+        .then(response => response.json())
+      await sleep(100);
+      this.state.refSets[id] = refSetData;
+      return refSetData;
+    }
+  }
+
+  async populateRefSets() {
+    const homePageData = this.state.homePageData;
+    const refSetIds = homePageData.data.StandardCollection.containers
+      .filter(c => c.set.type === "SetRef")
+      .map(c => c.set.refId);
+    this.state.refSets = {};
+    const refFetchPromises = refSetIds.map(async id => {
+      return await this.fetchRefSet(id);
+    });
+    return Promise.all(refFetchPromises)
+  }
 
   render() {
-    console.log(this.state);
     const collections = this.state.homePageData.data.StandardCollection.containers;
-    console.log(collections);
-    console.log(collections[0]);
     collections.forEach(c => {
         this.container.appendChild(this.renderCollection(c));
       });
@@ -79,28 +115,37 @@ class HomePage {
     this._rendered = true;
   }
 
+  getCollectionItems(collectionData) {
+    if (collectionData.set.type === "SetRef") {
+      const refSetData = this.state.refSets[collectionData.set.refId];
+      // TODO - is this in the data in a better place? Take a look
+      const setType = Object.keys(refSetData.data);
+      return refSetData.data[setType].items;
+    } else {
+      return collectionData.set.items;
+    }
+  }
+
   /**
-Note: Requires a collection's data to be fully populated.
-   */
+    Note: Requires a collection's data to be fully populated.
+  */
   renderCollection(collectionData) {
     const collectionTemplateString = `
       <div class="collection">
-      <h2>%title</h2>
-      <div class="items-container">
+        <h2>%title</h2>
+        <div class="items-container">
+        </div>
       </div>
-      </div>
-      `;
+    `;
     const title = collectionData.set.text.title.full.set.default.content;
     const collectionElement = htmlToElement(collectionTemplateString.replace('%title', title));
     const itemsContainer = collectionElement.querySelector('.items-container');
 
     // Only render populated sets for the moment.
-    if (collectionData.set.type !== "SetRef") {
-      collectionData.set.items.forEach(item => {
-        itemsContainer.appendChild(this.renderItem(item));
-      });
-    }
-    console.log(itemsContainer);
+    const items = this.getCollectionItems(collectionData);
+    items.forEach(item => {
+      itemsContainer.appendChild(this.renderItem(item));
+    });
     // N.B. only appending to DOM after successful render above means nothing gets rendered unless everything succeeds.
     return collectionElement;
   }
@@ -127,11 +172,11 @@ Note: Requires a collection's data to be fully populated.
   }
 }
 
-
 new HomePage({
-homePageUrl: '/home.json',
-container: document.querySelector('#app'),
+  homePageUrl: '/home.json',
+  container: document.querySelector('#app'),
 });
+
 </script>
 </body>
 </html>
