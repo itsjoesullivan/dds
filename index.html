@@ -6,6 +6,11 @@
 <div id="app"></div>
 <script>
 
+// TODO: Make this work
+function getItemImageUrl(item) {
+  return "https://prod-ripcut-delivery.disney-plus.net/v1/variant/disney/FD30DF7453381C0C2D52EB58C8F070C9D2C0A9D63BFC2D204DE7D53756B50CDC/scale?format=jpeg&quality=90&scalingAlgorithm=lanczos3&width=500";
+}
+
 // From: https://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
 /**
  * @param {String} HTML representing a single element
@@ -32,35 +37,57 @@ class HomePage {
     // Note: consider finding a way to delay this to test out regular network conditions
     const homePageData = await fetch(this.homePageUrl, { mode: 'no-cors' })
       .then(response => response.json())
-    this.state.homePageData = homePageData;
+      this.state.homePageData = homePageData;
     this.render();
   }
 
 
   render() {
     console.log(this.state);
-    console.log('render complete');
     const collections = this.state.homePageData.data.StandardCollection.containers;
     console.log(collections);
+    console.log(collections[0]);
     collections.forEach(c => {
-      this.container.appendChild(this.renderCollection(c));
-    });
+        this.container.appendChild(this.renderCollection(c));
+      });
+    console.log('render complete');
     this._rendered = true;
   }
 
   /**
-    Note: Requires a collection's data to be fully populated.
-  */
+Note: Requires a collection's data to be fully populated.
+   */
   renderCollection(collectionData) {
     const collectionTemplateString = `
       <div class="collection">
-        <h2>%title</h2>
-        <div class="items-container">
-        </div>
+      <h2>%title</h2>
+      <div class="items-container">
       </div>
-    `;
+      </div>
+      `;
     const title = collectionData.set.text.title.full.set.default.content;
-    return htmlToElement(collectionTemplateString.replace('%title', title));
+    const collectionElement = htmlToElement(collectionTemplateString.replace('%title', title));
+    const itemsContainer = collectionElement.querySelector('.items-container');
+
+    // Only render populated sets for the moment.
+    if (collectionData.set.type !== "SetRef") {
+      collectionData.set.items.forEach(item => {
+        itemsContainer.appendChild(this.renderItem(item));
+      });
+    }
+    console.log(itemsContainer);
+    // N.B. only appending to DOM after successful render above means nothing gets rendered unless everything succeeds.
+    return collectionElement;
+  }
+
+  renderItem(itemData) {
+    const itemTemplateString = `
+      <div class="item-container">
+      <img src="%image-url" />
+      </div>
+      `;
+    const itemElement = htmlToElement(itemTemplateString.replace('%image-url', getItemImageUrl(itemData)));
+    return itemElement;
   }
 
   // Because there's no framework here and the UI is limited in scope,
@@ -77,8 +104,8 @@ class HomePage {
 
 
 new HomePage({
-  homePageUrl: '/home.json',
-  container: document.querySelector('#app'),
+homePageUrl: '/home.json',
+container: document.querySelector('#app'),
 });
 </script>
 </body>
