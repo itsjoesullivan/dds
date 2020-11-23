@@ -68,40 +68,89 @@ class HomePage {
   upHandler() {
   }
   downHandler() {
-  }
-  leftHandler() {
-  }
-  rightHandler() {
-
-    const { 
-      collectionState,
-      // TODO: change to currentCollectionIndex or id
-      currentCollection,
-      currentSelectionIndex
-    } = this.state.ui;
-
     const uiState = this.state.ui;
-    const currentCollectionData = this.getCollectionItemsAtIndex(currentCollection);
+    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
 
-    if (currentCollectionData.length <= currentSelectionIndex + 1) {
-      // End of list
+    if (uiState.collectionState.length <= uiState.currentCollectionIndex + 1) {
+      // At last collection
       return;
     }
 
-    // if there is room
-    this.state.ui.currentSelectionIndex++;
+    const currentVisibleItemNumber = uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+    console.log(currentVisibleItemNumber);
+
+    // Modify state
+    uiState.currentCollectionIndex++;
+
+    // Use known visual state and stored visible item to determine new selection index
+    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+
+    // Modify UI
 
     // Remove currently selected
     document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
     
-    const currentCollectionEl = document.querySelectorAll('.collection')[currentCollection]
-    currentCollectionEl.querySelectorAll('.item-container')[this.state.ui.currentSelectionIndex].classList.add('selected');
-    const { currentFirstVisibleItem } = collectionState[currentCollection];
-    if (uiState.currentSelectionIndex - currentFirstVisibleItem >= 5) {
+    // Add class to new selection
+    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
+    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+  }
+  leftHandler() {
+    const uiState = this.state.ui;
+    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
+
+    if (uiState.currentSelectionIndex === 0) {
+      return;
+    }
+
+    // Modify state
+    // TODO: modify from uiState reference
+    this.state.ui.currentSelectionIndex--;
+
+
+    // Modify UI
+
+    // Remove currently selected
+    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
+    
+    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
+    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+    const { currentFirstVisibleItem } = uiState.collectionState[uiState.currentCollectionIndex];
+    if (uiState.currentSelectionIndex < currentFirstVisibleItem) {
       currentCollectionEl.querySelector('.items-container').scroll({
-        left: 384 * (uiState.currentSelectionIndex - currentFirstVisibleItem - 4),
+        left: 384 * (uiState.currentSelectionIndex),
         behavior: "smooth"
       });
+      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem = uiState.currentSelectionIndex;
+    }
+  }
+  rightHandler() {
+    const uiState = this.state.ui;
+    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
+
+    if (currentCollectionData.length <= uiState.currentSelectionIndex + 1) {
+      // End of list
+      return;
+    }
+
+    // Modify state
+    // TODO: modify from uiState reference
+    this.state.ui.currentSelectionIndex++;
+
+
+    // Modify UI
+
+    // Remove currently selected
+    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
+    
+    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
+    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+    const { currentFirstVisibleItem } = uiState.collectionState[uiState.currentCollectionIndex];
+    if (uiState.currentSelectionIndex - currentFirstVisibleItem >= 5) {
+      currentCollectionEl.querySelector('.items-container').scroll({
+        left: 384 * (uiState.currentSelectionIndex - 4),
+        behavior: "smooth"
+      });
+      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem = uiState.currentSelectionIndex - 4;
     }
   }
 
@@ -124,7 +173,6 @@ class HomePage {
 
     const initialCollectionSet = homePageData.data.StandardCollection.containers[0].set;
     this.state.ui.currentSelectedCollectionId = initialCollectionSet.setId || initialCollectionSet.refId;
-    console.log(this.state.ui.currentSelectedCollectionId);
   }
 
   /**
@@ -166,7 +214,7 @@ class HomePage {
       }
     });
     this.state.ui.collectionState = collectionState;
-    this.state.ui.currentCollection = 0;
+    this.state.ui.currentCollectionIndex = 0;
     this.state.ui.currentSelectionIndex = 0;
     console.log(this.state.homePageData);
   }
@@ -179,7 +227,7 @@ class HomePage {
         // probably referencing this state by collection id rather than
         // index.
         const collectionUIState = this.state.ui.collectionState[i];
-        if (i === this.state.ui.currentCollection) {
+        if (i === this.state.ui.currentCollectionIndex) {
           collectionUIState.collectionIsActive = true;
           collectionUIState.currentSelectionIndex = this.state.ui.currentSelectionIndex;
         }
@@ -226,7 +274,6 @@ class HomePage {
   }
 
   renderItem(itemData, { itemIsSelected }) {
-    console.log(itemIsSelected);
     const itemTemplateString = `
       <div class="item-container">
       <img src="%image-url" />
@@ -234,7 +281,6 @@ class HomePage {
       `;
     const itemElement = htmlToElement(itemTemplateString.replace('%image-url', getItemImageUrl(itemData)));
     if (itemIsSelected) {
-      console.log(itemElement);
       itemElement.classList.add('selected');
     }
     return itemElement;
@@ -270,6 +316,8 @@ Notes on navigation:
   - eagerly scroll to items (keep thigns centered when possible)
 
 
-
-
+at selection change:
+  - selected item changes
+  - old selected element becomes not selected
+  - scrolling adjusts
 */
