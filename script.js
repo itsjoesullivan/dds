@@ -249,9 +249,20 @@ class HomePage {
     return Promise.all(refFetchPromises)
   }
 
+  getCollectionItems(collectionData) {
+    if (collectionData.set.type === "SetRef") {
+      const refSetData = this.state.refSets[collectionData.set.refId];
+      // TODO - is this in the data in a better place? Take a look
+      const setType = Object.keys(refSetData.data);
+      return refSetData.data[setType].items;
+    } else {
+      return collectionData.set.items;
+    }
+  }
+
   getCollectionItemsAtIndex(index) {
-    // TODO: make function for ref sets
-    return this.state.homePageData.data.StandardCollection.containers[index].set.items;
+    const collectionData = this.state.homePageData.data.StandardCollection.containers[index];
+    return this.getCollectionItems(collectionData);
   }
 
   setUIState() {
@@ -263,9 +274,13 @@ class HomePage {
     this.state.ui.collectionState = collectionState;
     this.state.ui.currentCollectionIndex = 0;
     this.state.ui.currentSelectionIndex = 0;
-    console.log(this.state.homePageData);
   }
 
+  // Because there's no framework here and the UI is limited in scope,
+  // I'm opting to update the UI instead of re-render it
+  // whenever the state changes. This requires more thought about
+  // *which* state changes are happening. On the plus side it
+  // provide more flexibility in dealing with transitions.
   render() {
     const collections = this.state.homePageData.data.StandardCollection.containers;
     collections.forEach((c, i) => {
@@ -280,20 +295,9 @@ class HomePage {
         }
         this.container.appendChild(this.renderCollection(c, collectionUIState));
       });
-    console.log('render complete');
     this._rendered = true;
   }
 
-  getCollectionItems(collectionData) {
-    if (collectionData.set.type === "SetRef") {
-      const refSetData = this.state.refSets[collectionData.set.refId];
-      // TODO - is this in the data in a better place? Take a look
-      const setType = Object.keys(refSetData.data);
-      return refSetData.data[setType].items;
-    } else {
-      return collectionData.set.items;
-    }
-  }
 
   /**
     Note: Requires a collection's data to be fully populated.
@@ -332,20 +336,6 @@ class HomePage {
     }
     return itemElement;
   }
-
-  // Because there's no framework here and the UI is limited in scope,
-  // I'm opting to update the UI instead of re-render it
-  // whenever the state changes. This requires more thought about
-  // *which* state changes are happening. On the plus side it
-  // provide more flexibility in dealing with transitions.
-  update() {
-    if (!this._rendered) {
-      return this.render();
-    }
-  }
-
-  changeActiveSelection() {
-  }
 }
 
 new HomePage({
@@ -367,4 +357,12 @@ at selection change:
   - selected item changes
   - old selected element becomes not selected
   - scrolling adjusts
+*/
+
+
+/**
+todos:
+x sort out refsets in scrolling
+- identify why items shift when selection leaves *collection* but not just when it moves
+
 */
