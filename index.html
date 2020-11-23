@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+</head>
+<body>
+<div id="app"></div>
+<script>
+
+// From: https://stackoverflow.com/questions/494143/creating-a-new-dom-element-from-an-html-string-using-built-in-dom-methods-or-pro
+/**
+ * @param {String} HTML representing a single element
+ * @return {Element}
+ */
+function htmlToElement(html) {
+  var template = document.createElement('template');
+  html = html.trim(); // Never return a text node of whitespace as the result
+  template.innerHTML = html;
+  return template.content.firstChild;
+}
+
+class HomePage {
+  constructor({ homePageUrl, container }) {
+    this.container = container;
+    this.homePageUrl = homePageUrl;
+    this.state = {};
+    this._rendered = false;
+    this.initializeData();
+  }
+
+
+  async initializeData() {
+    // Note: consider finding a way to delay this to test out regular network conditions
+    const homePageData = await fetch(this.homePageUrl, { mode: 'no-cors' })
+      .then(response => response.json())
+    this.state.homePageData = homePageData;
+    this.render();
+  }
+
+
+  render() {
+    console.log(this.state);
+    console.log('render complete');
+    const collections = this.state.homePageData.data.StandardCollection.containers;
+    console.log(collections);
+    collections.forEach(c => {
+      this.container.appendChild(this.renderCollection(c));
+    });
+    this._rendered = true;
+  }
+
+  /**
+    Note: Requires a collection's data to be fully populated.
+  */
+  renderCollection(collectionData) {
+    const collectionTemplateString = `
+      <div class="collection">
+        <h2>%title</h2>
+        <div class="items-container">
+        </div>
+      </div>
+    `;
+    const title = collectionData.set.text.title.full.set.default.content;
+    return htmlToElement(collectionTemplateString.replace('%title', title));
+  }
+
+  // Because there's no framework here and the UI is limited in scope,
+  // I'm opting to update the UI instead of re-render it
+  // whenever the state changes. This requires more thought about
+  // *which* state changes are happening, but on the plus side it
+  // provide more flexibility in dealing with transitions.
+  update() {
+    if (!this._rendered) {
+      return this.render();
+    }
+  }
+}
+
+
+new HomePage({
+  homePageUrl: '/home.json',
+  container: document.querySelector('#app'),
+});
+</script>
+</body>
+</html>
