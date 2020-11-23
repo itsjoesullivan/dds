@@ -46,18 +46,23 @@ class HomePage {
   }
 
   initializeListeners() {
-    this._keydownListener = ({ key }) => {
+    this._keydownListener = (e) => {
+      const { key } = e;
       switch(key) {
         case 'ArrowUp':
+          e.preventDefault();
           this.upHandler();
           break;
         case 'ArrowDown':
+          e.preventDefault();
           this.downHandler();
           break;
         case 'ArrowLeft':
+          e.preventDefault();
           this.leftHandler();
           break;
         case 'ArrowRight':
+          e.preventDefault();
           this.rightHandler();
           break;
       }
@@ -66,6 +71,39 @@ class HomePage {
   }
 
   upHandler() {
+    const uiState = this.state.ui;
+    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
+
+    if (uiState.currentCollectionIndex === 0) {
+      // At top
+      return;
+    }
+
+    const currentVisibleItemNumber = uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+
+    // Modify state
+    uiState.currentCollectionIndex--;
+
+    // Use known visual state and stored visible item to determine new selection index
+    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+
+    // Modify UI
+
+    // Remove currently selected
+    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
+    
+    // Add class to new selection
+    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
+    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+
+    const parentEl = document.querySelector('#app');
+    const appHeight = parentEl.offsetHeight;
+    const elHeight = currentCollectionEl.offsetHeight;
+    const offsetTop = currentCollectionEl.offsetTop;
+    parentEl.scroll({
+      top: offsetTop - ((appHeight - elHeight) / 2),
+      behavior: "smooth"
+    });
   }
   downHandler() {
     const uiState = this.state.ui;
@@ -77,7 +115,6 @@ class HomePage {
     }
 
     const currentVisibleItemNumber = uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
-    console.log(currentVisibleItemNumber);
 
     // Modify state
     uiState.currentCollectionIndex++;
@@ -93,7 +130,17 @@ class HomePage {
     // Add class to new selection
     const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
     currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+
+    const parentEl = document.querySelector('#app');
+    const appHeight = parentEl.offsetHeight;
+    const elHeight = currentCollectionEl.offsetHeight;
+    const offsetTop = currentCollectionEl.offsetTop;
+    parentEl.scroll({
+      top: offsetTop - ((appHeight - elHeight) / 2),
+      behavior: "smooth"
+    });
   }
+
   leftHandler() {
     const uiState = this.state.ui;
     const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
