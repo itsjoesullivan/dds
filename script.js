@@ -72,15 +72,37 @@ class HomePage {
   leftHandler() {
   }
   rightHandler() {
-    console.log('right');
-    this.state.ui.collectionState = collectionState;
-    this.state.ui.currentCollection = 0;
-    this.state.ui.currentSelectionIndex = 2;
+
     const { 
       collectionState,
+      // TODO: change to currentCollectionIndex or id
       currentCollection,
       currentSelectionIndex
     } = this.state.ui;
+
+    const uiState = this.state.ui;
+    const currentCollectionData = this.getCollectionItemsAtIndex(currentCollection);
+
+    if (currentCollectionData.length <= currentSelectionIndex + 1) {
+      // End of list
+      return;
+    }
+
+    // if there is room
+    this.state.ui.currentSelectionIndex++;
+
+    // Remove currently selected
+    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
+    
+    const currentCollectionEl = document.querySelectorAll('.collection')[currentCollection]
+    currentCollectionEl.querySelectorAll('.item-container')[this.state.ui.currentSelectionIndex].classList.add('selected');
+    const { currentFirstVisibleItem } = collectionState[currentCollection];
+    if (uiState.currentSelectionIndex - currentFirstVisibleItem >= 5) {
+      currentCollectionEl.querySelector('.items-container').scroll({
+        left: 384 * (uiState.currentSelectionIndex - currentFirstVisibleItem - 4),
+        behavior: "smooth"
+      });
+    }
   }
 
   async initializeData() {
@@ -130,6 +152,11 @@ class HomePage {
       return await this.fetchRefSet(id);
     });
     return Promise.all(refFetchPromises)
+  }
+
+  getCollectionItemsAtIndex(index) {
+    // TODO: make function for ref sets
+    return this.state.homePageData.data.StandardCollection.containers[index].set.items;
   }
 
   setUIState() {
@@ -223,8 +250,6 @@ class HomePage {
       return this.render();
     }
   }
-
-
 
   changeActiveSelection() {
   }
