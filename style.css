@@ -1,0 +1,50 @@
+body {
+  background-color: #000;
+  color: #ddd;
+  font-family: sans-serif;
+  width: 1920px;
+}
+
+#app {
+  overflow: hidden;
+  height: 1080px;
+}
+
+h2 {
+  margin: 0px 30px; // convenience to avoid first / last child logic in collections
+}
+
+.collection {
+  margin-bottom: 30px;
+}
+
+.items-container {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.item-container {
+  margin: 10px 24px;
+  transition: margin 0.1s linear;
+}
+
+/*
+  Choosing just to handle 1920, and 5 tiles per screen,
+  leaves 354px after removing margin.
+*/
+.item-container img {
+  width: 324px;
+  border: 6px solid rgba(0, 0, 0, 0);
+  border-radius: 4px;
+  transition: border-width 0.1s linear, width 0.1s linear;
+}
+
+.item-container.selected {
+  margin: 1px 9px;
+}
+
+.item-container.selected img {
+  width: 354px;
+  border-color: #ddd
+}
