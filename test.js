@@ -100,3 +100,34 @@ describe('shiftCollectionRetainingSelectedIndex', () => {
     expect(homePage.state.ui.currentSelectionIndex).toEqual(2);
   });
 });
+
+describe('leftHandler', () => {
+  let homePage;
+  beforeEach(() => {
+    homePage = new _HomePage();
+    homePage.updateUIFromNavigationChange = jest.fn();
+  });
+  it('exists', () => {
+    expect(homePage.leftHandler).toBeDefined();
+  });
+  it('decrements current selection index', () => {
+    homePage.state.ui.currentSelectionIndex = 5;
+    homePage.leftHandler();
+    homePage.leftHandler();
+    homePage.leftHandler();
+    expect(homePage.state.ui.currentSelectionIndex).toEqual(2);
+  });
+  it('does not scroll below 0', () => {
+    homePage.leftHandler();
+    homePage.leftHandler();
+    homePage.leftHandler();
+    expect(homePage.state.ui.currentSelectionIndex).toEqual(0);
+  });
+  it('calls ui update', () => {
+    homePage.state.ui.currentSelectionIndex = 1;
+    homePage.leftHandler();
+    expect(homePage.updateUIFromNavigationChange.mock.calls.length).toBe(1);
+  });
+});
+
+// TODO: other functions that are practical to test
