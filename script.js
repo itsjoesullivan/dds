@@ -1,10 +1,3 @@
-function sleep(ms) {
-  return new Promise(function(resolve, reject) {
-    setTimeout(resolve, ms);
-  });
-}
-
-
 // TODO: Make this more logical and flexible.
 function getItemImageUrl(item) {
   const tile = item.image.tile;
@@ -235,12 +228,18 @@ class HomePage {
     uiState.currentCollectionIndex += change;
 
     // Use known visual state and stored visible item to determine new selection index
-    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+    uiState.currentSelectionIndex = (
+      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem +
+      currentVisibleItemNumber
+    );
   }
 
   getCurrentVisibleItemNumber() {
     const uiState = this.state.ui;
-    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+    return (
+      uiState.currentSelectionIndex -
+      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem
+    );
   }
 
   updateUIFromNavigationChange() {
@@ -348,14 +347,14 @@ class HomePage {
 }
 
 
-if (typeof jest !== 'undefined') {
+if (typeof jest !== "undefined") {
   module.exports = {
     HomePage
   };
 } else {
   new HomePage({
     homePageUrl: "https://cd-static.bamgrid.com/dp-117731241344/home.json",
-    container: document.querySelector("#app"),
+    container: document.querySelector("#app")
   });
 }
 
@@ -363,5 +362,5 @@ if (typeof jest !== 'undefined') {
 /**
 todos:
 x sort out refsets in scrolling
-- identify why items shift when selection leaves *collection* but not just when it moves
+x identify why items shift when selection leaves *collection* but not just when it moves
 */
