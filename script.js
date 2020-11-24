@@ -79,6 +79,7 @@ class HomePage {
       return;
     }
 
+    // Change state
     this.shiftCollectionRetainingSelectedIndex(-1);
 
 
@@ -94,6 +95,7 @@ class HomePage {
       return;
     }
 
+    // Change state
     this.shiftCollectionRetainingSelectedIndex(1);
 
     // Modify UI
@@ -102,13 +104,12 @@ class HomePage {
 
   leftHandler() {
     const uiState = this.state.ui;
-    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
 
     if (uiState.currentSelectionIndex === 0) {
       return;
     }
 
-    // Modify state
+    // Change state
     uiState.currentSelectionIndex--;
 
 
@@ -125,9 +126,8 @@ class HomePage {
       return;
     }
 
-    // Modify state
+    // Change state
     uiState.currentSelectionIndex++;
-
 
     // Modify UI
     this.updateUIFromNavigationChange();
@@ -162,11 +162,11 @@ class HomePage {
     }
   }
 
-  getCurrentVisibleItemNumber() {
-    const uiState = this.state.ui;
-    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
-  }
-
+  /**
+    Change which collection is updated
+    while retaining the same visual
+    column selection.
+  */
   shiftCollectionRetainingSelectedIndex(change) {
     const uiState = this.state.ui;
     const currentVisibleItemNumber = this.getCurrentVisibleItemNumber();
@@ -176,6 +176,11 @@ class HomePage {
 
     // Use known visual state and stored visible item to determine new selection index
     uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+  }
+
+  getCurrentVisibleItemNumber() {
+    const uiState = this.state.ui;
+    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
   }
 
   setVerticalScroll() {
