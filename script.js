@@ -8,7 +8,7 @@ function sleep(ms) {
 // TODO: Make this more logical and flexible.
 function getItemImageUrl(item) {
   const tile = item.image.tile;
-  const t178 = tile['1.78'];
+  const t178 = tile["1.78"];
   let def;
   if (t178.default) {
     def = t178.default;
@@ -26,7 +26,7 @@ function getItemImageUrl(item) {
  * @return {Element}
  */
 function htmlToElement(html) {
-  var template = document.createElement('template');
+  var template = document.createElement("template");
   html = html.trim(); // Never return a text node of whitespace as the result
   template.innerHTML = html;
   return template.content.firstChild;
@@ -49,25 +49,25 @@ class HomePage {
     this._keydownListener = (e) => {
       const { key } = e;
       switch(key) {
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           this.upHandler();
           break;
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           this.downHandler();
           break;
-        case 'ArrowLeft':
+        case "ArrowLeft":
           e.preventDefault();
           this.leftHandler();
           break;
-        case 'ArrowRight':
+        case "ArrowRight":
           e.preventDefault();
           this.rightHandler();
           break;
       }
     };
-    document.addEventListener('keydown', this._keydownListener);
+    document.addEventListener("keydown", this._keydownListener);
   }
 
   upHandler() {
@@ -79,66 +79,25 @@ class HomePage {
       return;
     }
 
-    const currentVisibleItemNumber = uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+    this.shiftCollectionRetainingSelectedIndex(-1);
 
-    // Modify state
-    uiState.currentCollectionIndex--;
-
-    // Use known visual state and stored visible item to determine new selection index
-    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
 
     // Modify UI
-
-    // Remove currently selected
-    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
-    
-    // Add class to new selection
-    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
-    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
-
-    const parentEl = document.querySelector('#app');
-    const appHeight = parentEl.offsetHeight;
-    const elHeight = currentCollectionEl.offsetHeight;
-    const offsetTop = currentCollectionEl.offsetTop;
-    parentEl.scroll({
-      top: offsetTop - ((appHeight - elHeight) / 2),
-      behavior: "smooth"
-    });
+    this.updateUIFromNavigationChange();
   }
+
   downHandler() {
     const uiState = this.state.ui;
-    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
 
     if (uiState.collectionState.length <= uiState.currentCollectionIndex + 1) {
       // At last collection
       return;
     }
 
-    const currentVisibleItemNumber = uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
-
-    // Modify state
-    uiState.currentCollectionIndex++;
-
-    // Use known visual state and stored visible item to determine new selection index
-    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+    this.shiftCollectionRetainingSelectedIndex(1);
 
     // Modify UI
-
-    // Remove currently selected
-    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
-    
-    // Add class to new selection
-    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
-    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
-
-    const parentEl = document.querySelector('#app');
-    const appHeight = parentEl.offsetHeight;
-    const elHeight = currentCollectionEl.offsetHeight;
-    const offsetTop = currentCollectionEl.offsetTop;
-    parentEl.scroll({
-      top: offsetTop - ((appHeight - elHeight) / 2),
-      behavior: "smooth"
-    });
+    this.updateUIFromNavigationChange();
   }
 
   leftHandler() {
@@ -150,26 +109,13 @@ class HomePage {
     }
 
     // Modify state
-    // TODO: modify from uiState reference
-    this.state.ui.currentSelectionIndex--;
+    uiState.currentSelectionIndex--;
 
 
     // Modify UI
-
-    // Remove currently selected
-    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
-    
-    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
-    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
-    const { currentFirstVisibleItem } = uiState.collectionState[uiState.currentCollectionIndex];
-    if (uiState.currentSelectionIndex < currentFirstVisibleItem) {
-      currentCollectionEl.querySelector('.items-container').scroll({
-        left: 384 * (uiState.currentSelectionIndex),
-        behavior: "smooth"
-      });
-      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem = uiState.currentSelectionIndex;
-    }
+    this.updateUIFromNavigationChange();
   }
+
   rightHandler() {
     const uiState = this.state.ui;
     const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
@@ -180,26 +126,77 @@ class HomePage {
     }
 
     // Modify state
-    // TODO: modify from uiState reference
-    this.state.ui.currentSelectionIndex++;
+    uiState.currentSelectionIndex++;
 
 
     // Modify UI
+    this.updateUIFromNavigationChange();
+  }
 
-    // Remove currently selected
-    document.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'))
-    
-    const currentCollectionEl = document.querySelectorAll('.collection')[uiState.currentCollectionIndex]
-    currentCollectionEl.querySelectorAll('.item-container')[uiState.currentSelectionIndex].classList.add('selected');
+  updateUIFromNavigationChange() {
+    this.updateSelectedTile();
+    this.setHorizontalScroll();
+    this.setVerticalScroll();
+  }
+
+  setHorizontalScroll() {
+    const uiState = this.state.ui;
     const { currentFirstVisibleItem } = uiState.collectionState[uiState.currentCollectionIndex];
+    const currentCollectionEl = this.container.querySelectorAll(".collection")[uiState.currentCollectionIndex]
+    // TODO: unify these logic blocks
+    // left
+    if (uiState.currentSelectionIndex < currentFirstVisibleItem) {
+      currentCollectionEl.querySelector(".items-container").scroll({
+        left: 384 * (uiState.currentSelectionIndex),
+        behavior: "smooth"
+      });
+      uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem = uiState.currentSelectionIndex;
+    }
+    // right
     if (uiState.currentSelectionIndex - currentFirstVisibleItem >= 5) {
-      currentCollectionEl.querySelector('.items-container').scroll({
+      currentCollectionEl.querySelector(".items-container").scroll({
         left: 384 * (uiState.currentSelectionIndex - 4),
         behavior: "smooth"
       });
       uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem = uiState.currentSelectionIndex - 4;
     }
   }
+
+  getCurrentVisibleItemNumber() {
+    const uiState = this.state.ui;
+    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+  }
+
+  shiftCollectionRetainingSelectedIndex(change) {
+    const uiState = this.state.ui;
+    const currentVisibleItemNumber = this.getCurrentVisibleItemNumber();
+
+    // Modify state
+    uiState.currentCollectionIndex += change;
+
+    // Use known visual state and stored visible item to determine new selection index
+    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+  }
+
+  setVerticalScroll() {
+    const uiState = this.state.ui;
+    const currentCollectionEl = this.container.querySelectorAll(".collection")[uiState.currentCollectionIndex]
+    const appHeight = this.container.offsetHeight;
+    const elHeight = currentCollectionEl.offsetHeight;
+    const offsetTop = currentCollectionEl.offsetTop;
+    this.container.scroll({
+      top: offsetTop - ((appHeight - elHeight) / 2),
+      behavior: "smooth"
+    });
+  }
+
+  updateSelectedTile() {
+    const uiState = this.state.ui;
+    this.container.querySelectorAll(".selected").forEach(e => e.classList.remove("selected"))
+    const currentCollectionEl = this.container.querySelectorAll(".collection")[uiState.currentCollectionIndex]
+    currentCollectionEl.querySelectorAll(".item-container")[uiState.currentSelectionIndex].classList.add("selected");
+  }
+
 
   async initializeData() {
     await this.populateHomePageData(this.homePageUrl);
@@ -289,12 +286,9 @@ class HomePage {
         // probably referencing this state by collection id rather than
         // index.
         const collectionUIState = this.state.ui.collectionState[i];
-        if (i === this.state.ui.currentCollectionIndex) {
-          collectionUIState.collectionIsActive = true;
-          collectionUIState.currentSelectionIndex = this.state.ui.currentSelectionIndex;
-        }
         this.container.appendChild(this.renderCollection(c, collectionUIState));
       });
+    this.updateSelectedTile();
     this._rendered = true;
   }
 
@@ -302,7 +296,7 @@ class HomePage {
   /**
     Note: Requires a collection's data to be fully populated.
   */
-  renderCollection(collectionData, { currentFirstVisibleItem, collectionIsActive, currentSelectionIndex }) {
+  renderCollection(collectionData) {
     const collectionTemplateString = `
       <div class="collection">
         <h2>%title</h2>
@@ -311,36 +305,31 @@ class HomePage {
       </div>
     `;
     const title = collectionData.set.text.title.full.set.default.content;
-    const collectionElement = htmlToElement(collectionTemplateString.replace('%title', title));
-    const itemsContainer = collectionElement.querySelector('.items-container');
+    const collectionElement = htmlToElement(collectionTemplateString.replace("%title", title));
+    const itemsContainer = collectionElement.querySelector(".items-container");
 
     // Only render populated sets for the moment.
     const items = this.getCollectionItems(collectionData);
-    items.forEach((item, i) => {
-      const itemIsSelected = collectionIsActive && currentSelectionIndex === i;
-      itemsContainer.appendChild(this.renderItem(item, { itemIsSelected }));
+    items.forEach(item => {
+      itemsContainer.appendChild(this.renderItem(item));
     });
     // N.B. only appending to DOM after successful render above means nothing gets rendered unless everything succeeds.
     return collectionElement;
   }
 
-  renderItem(itemData, { itemIsSelected }) {
+  renderItem(itemData) {
     const itemTemplateString = `
       <div class="item-container">
       <img src="%image-url" />
       </div>
       `;
-    const itemElement = htmlToElement(itemTemplateString.replace('%image-url', getItemImageUrl(itemData)));
-    if (itemIsSelected) {
-      itemElement.classList.add('selected');
-    }
-    return itemElement;
+    return htmlToElement(itemTemplateString.replace("%image-url", getItemImageUrl(itemData)));
   }
 }
 
 new HomePage({
-  homePageUrl: 'https://cd-static.bamgrid.com/dp-117731241344/home.json',
-  container: document.querySelector('#app'),
+  homePageUrl: "https://cd-static.bamgrid.com/dp-117731241344/home.json",
+  container: document.querySelector("#app"),
 });
 
 /**
