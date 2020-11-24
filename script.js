@@ -1,3 +1,5 @@
+/* HELPERS */
+
 // TODO: Make this more logical and flexible.
 function getItemImageUrl(item) {
   const tile = item.image.tile;
@@ -24,6 +26,8 @@ function htmlToElement(html) {
   template.innerHTML = html;
   return template.content.firstChild;
 }
+
+/* END HELPERS */
 
 
 class HomePage {
