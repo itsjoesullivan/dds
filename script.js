@@ -40,9 +40,99 @@ class HomePage {
     this.state = {
       ui: {}
     };
-    this._rendered = false;
-    this.initializeData();
+    // Use as promise here because there are no async constructors
+    // but leave logic in constructor.
+    // Using an event for "ready" would be a nice alternative.
+    this.initializeData().then(() => {
+      this.setUIState();
+      this.render();
+    });
     this.initializeListeners();
+  }
+
+  async initializeData() {
+    await this.populateHomePageData(this.homePageUrl);
+    await this.populateRefSets();
+  }
+
+  async populateHomePageData(homePageUrl) {
+    // Note: consider finding a way to delay this to test out regular network conditions
+    const homePageData = await fetch(homePageUrl).then(response => response.json())
+
+    // The tile image for the 2nd item in the first collection is 404'ing...
+    // Just removed it as an expedient.
+    homePageData.data.StandardCollection.containers[0].set.items.splice(1, 1);
+
+    this.state.homePageData = homePageData;
+
+    const initialCollectionSet = homePageData.data.StandardCollection.containers[0].set;
+    this.state.ui.currentSelectedCollectionId = initialCollectionSet.setId || initialCollectionSet.refId;
+  }
+
+
+  /*
+    Store ref sets in the state separate from
+    the homepage data to provide more flexibility
+    for data retrieval down the line.
+  */
+  async populateRefSets() {
+    const homePageData = this.state.homePageData;
+    const refSetIds = homePageData.data.StandardCollection.containers
+      .filter(c => c.set.type === "SetRef")
+      .map(c => c.set.refId);
+    this.state.refSets = {};
+    const refFetchPromises = refSetIds.map(async id => {
+      return await this.fetchRefSet(id);
+    });
+    return Promise.all(refFetchPromises)
+  }
+
+  /*
+    Caching from the start here.
+  */
+  async fetchRefSet(id) {
+    if (this.state.refSets[id]) {
+      return this.state.refSets[id];
+    } else {
+      const refSetData = await fetch(`https://cd-static.bamgrid.com/dp-117731241344/sets/${id}.json`)
+        .then(response => response.json())
+      this.state.refSets[id] = refSetData;
+      return refSetData;
+    }
+  }
+
+  setUIState() {
+    const collectionState = this.state.homePageData.data.StandardCollection.containers.map(c => {
+      return {
+        currentFirstVisibleItem: 0,
+      }
+    });
+    this.state.ui.collectionState = collectionState;
+    this.state.ui.currentCollectionIndex = 0;
+    this.state.ui.currentSelectionIndex = 0;
+  }
+
+  /*
+    Retrieve collection items when passed overall data object from homepage.
+    Should perhaps be via ID instead.
+  */
+  getCollectionItems(collectionData) {
+    if (collectionData.set.type === "SetRef") {
+      const refSetData = this.state.refSets[collectionData.set.refId];
+      // TODO - is this in the data in a better place? Take a look
+      const setType = Object.keys(refSetData.data);
+      return refSetData.data[setType].items;
+    } else {
+      return collectionData.set.items;
+    }
+  }
+
+  /*
+    Retrieve collection items by index in overall list of collections.
+  */
+  getCollectionItemsAtIndex(index) {
+    const collectionData = this.state.homePageData.data.StandardCollection.containers[index];
+    return this.getCollectionItems(collectionData);
   }
 
   initializeListeners() {
@@ -72,7 +162,6 @@ class HomePage {
 
   upHandler() {
     const uiState = this.state.ui;
-    const currentCollectionData = this.getCollectionItemsAtIndex(uiState.currentCollectionIndex);
 
     if (uiState.currentCollectionIndex === 0) {
       // At top
@@ -133,6 +222,27 @@ class HomePage {
     this.updateUIFromNavigationChange();
   }
 
+  /**
+    Change which collection is updated
+    while retaining the same visual
+    column selection.
+  */
+  shiftCollectionRetainingSelectedIndex(change) {
+    const uiState = this.state.ui;
+    const currentVisibleItemNumber = this.getCurrentVisibleItemNumber();
+
+    // Modify state
+    uiState.currentCollectionIndex += change;
+
+    // Use known visual state and stored visible item to determine new selection index
+    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
+  }
+
+  getCurrentVisibleItemNumber() {
+    const uiState = this.state.ui;
+    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
+  }
+
   updateUIFromNavigationChange() {
     this.updateSelectedTile();
     this.setHorizontalScroll();
@@ -162,27 +272,6 @@ class HomePage {
     }
   }
 
-  /**
-    Change which collection is updated
-    while retaining the same visual
-    column selection.
-  */
-  shiftCollectionRetainingSelectedIndex(change) {
-    const uiState = this.state.ui;
-    const currentVisibleItemNumber = this.getCurrentVisibleItemNumber();
-
-    // Modify state
-    uiState.currentCollectionIndex += change;
-
-    // Use known visual state and stored visible item to determine new selection index
-    uiState.currentSelectionIndex = uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem + currentVisibleItemNumber;
-  }
-
-  getCurrentVisibleItemNumber() {
-    const uiState = this.state.ui;
-    return uiState.currentSelectionIndex - uiState.collectionState[uiState.currentCollectionIndex].currentFirstVisibleItem;
-  }
-
   setVerticalScroll() {
     const uiState = this.state.ui;
     const currentCollectionEl = this.container.querySelectorAll(".collection")[uiState.currentCollectionIndex]
@@ -195,87 +284,14 @@ class HomePage {
     });
   }
 
+  /*
+    Visually update which item is selected.
+  */
   updateSelectedTile() {
     const uiState = this.state.ui;
     this.container.querySelectorAll(".selected").forEach(e => e.classList.remove("selected"))
     const currentCollectionEl = this.container.querySelectorAll(".collection")[uiState.currentCollectionIndex]
     currentCollectionEl.querySelectorAll(".item-container")[uiState.currentSelectionIndex].classList.add("selected");
-  }
-
-
-  async initializeData() {
-    await this.populateHomePageData(this.homePageUrl);
-    await this.populateRefSets();
-    this.setUIState();
-    this.render();
-  }
-
-  async populateHomePageData(homePageUrl) {
-    // Note: consider finding a way to delay this to test out regular network conditions
-    const homePageData = await fetch(homePageUrl).then(response => response.json())
-
-    // The tile image for the 2nd item in the first collection is 404'ing...
-    // Just removed it as an expedient.
-    homePageData.data.StandardCollection.containers[0].set.items.splice(1, 1);
-
-    this.state.homePageData = homePageData;
-
-    const initialCollectionSet = homePageData.data.StandardCollection.containers[0].set;
-    this.state.ui.currentSelectedCollectionId = initialCollectionSet.setId || initialCollectionSet.refId;
-  }
-
-  /**
-    Caching from the start here.
-  */
-  async fetchRefSet(id) {
-    if (this.state.refSets[id]) {
-      return this.state.refSets[id];
-    } else {
-      const refSetData = await fetch(`https://cd-static.bamgrid.com/dp-117731241344/sets/${id}.json`)
-        .then(response => response.json())
-      //await sleep(100);
-      this.state.refSets[id] = refSetData;
-      return refSetData;
-    }
-  }
-
-  async populateRefSets() {
-    const homePageData = this.state.homePageData;
-    const refSetIds = homePageData.data.StandardCollection.containers
-      .filter(c => c.set.type === "SetRef")
-      .map(c => c.set.refId);
-    this.state.refSets = {};
-    const refFetchPromises = refSetIds.map(async id => {
-      return await this.fetchRefSet(id);
-    });
-    return Promise.all(refFetchPromises)
-  }
-
-  getCollectionItems(collectionData) {
-    if (collectionData.set.type === "SetRef") {
-      const refSetData = this.state.refSets[collectionData.set.refId];
-      // TODO - is this in the data in a better place? Take a look
-      const setType = Object.keys(refSetData.data);
-      return refSetData.data[setType].items;
-    } else {
-      return collectionData.set.items;
-    }
-  }
-
-  getCollectionItemsAtIndex(index) {
-    const collectionData = this.state.homePageData.data.StandardCollection.containers[index];
-    return this.getCollectionItems(collectionData);
-  }
-
-  setUIState() {
-    const collectionState = this.state.homePageData.data.StandardCollection.containers.map(c => {
-      return {
-        currentFirstVisibleItem: 0,
-      }
-    });
-    this.state.ui.collectionState = collectionState;
-    this.state.ui.currentCollectionIndex = 0;
-    this.state.ui.currentSelectionIndex = 0;
   }
 
   // Because there's no framework here and the UI is limited in scope,
@@ -294,7 +310,6 @@ class HomePage {
         this.container.appendChild(this.renderCollection(c, collectionUIState));
       });
     this.updateSelectedTile();
-    this._rendered = true;
   }
 
 
@@ -332,31 +347,21 @@ class HomePage {
   }
 }
 
-new HomePage({
-  homePageUrl: "https://cd-static.bamgrid.com/dp-117731241344/home.json",
-  container: document.querySelector("#app"),
-});
 
-/**
-Notes on navigation:
-- left goes left
-- right goes right
-- horizontal scrolling:
-  - lazily scroll to items
-- vertical scrolling:
-  - eagerly scroll to items (keep thigns centered when possible)
-
-
-at selection change:
-  - selected item changes
-  - old selected element becomes not selected
-  - scrolling adjusts
-*/
+if (typeof jest !== 'undefined') {
+  module.exports = {
+    HomePage
+  };
+} else {
+  new HomePage({
+    homePageUrl: "https://cd-static.bamgrid.com/dp-117731241344/home.json",
+    container: document.querySelector("#app"),
+  });
+}
 
 
 /**
 todos:
 x sort out refsets in scrolling
 - identify why items shift when selection leaves *collection* but not just when it moves
-
 */
